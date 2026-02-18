@@ -1,0 +1,22 @@
+/* Reset margins, padding, and UI defaults */
+body, html {
+    margin: 0;
+    padding: 0;
+    overflow: hidden; 
+    background-color: #0f0a14;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    font-family: 'Courier New', Courier, monospace;
+    
+    /* Tablet/Mobile specific fixes */
+    touch-action: none; 
+    -webkit-user-select: none; 
+    user-select: none; 
+    -webkit-touch-callout: none; 
+}
+
+canvas {
+    display: block;
+}
