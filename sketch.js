@@ -11,25 +11,23 @@ function setup() {
   createCanvas(windowWidth, windowHeight);
   textAlign(CENTER, CENTER);
 
-  // Initialize the audio context and microphone
   audioContext = getAudioContext();
   mic = new p5.AudioIn();
+  // Start the mic, then immediately trigger the AI model to start loading
   mic.start(initPitchDetection);
 
-  // Setup FFT strictly for the visual volume pulses
   fft = new p5.FFT(0.8, 2048);
   fft.setInput(mic);
 }
 
 function initPitchDetection() {
-  // Pointing to your local folder containing model.json and the 14 .bin files
-  const modelUrl = './model/';
-  
+  // Swapped to Cloud URL - Browser will cache this for offline use at the festival!
+  const modelUrl = 'https://cdn.jsdelivr.net/gh/ml5js/ml5-data-and-models/models/pitch-detection/crepe/';
   crepe = ml5.pitchDetection(modelUrl, audioContext, mic.stream, modelLoaded);
 }
 
 function modelLoaded() {
-  console.log("Model Loaded: CREPE (Local Offline Mode)");
+  console.log("Model Loaded: CREPE (Cloud/Cache Mode)");
   modelIsLoaded = true;
   getPitch();
 }
@@ -41,14 +39,11 @@ function getPitch() {
     } else {
       frequency = 0;
     }
-    // Recursive loop to keep listening continuously
     getPitch();
   });
 }
 
-// --- TUNING MATH ---
 function getTuningData(freq) {
-  // Filter out sub-bass rumble and high-end hiss
   if (freq < 50 || freq > 5000) return null;
   
   let exactMidiNote = 12 * Math.log2(freq / 440) + 69;
@@ -66,15 +61,21 @@ function getTuningData(freq) {
 // --- MAIN VISUAL LOOP ---
 function draw() {
   background(15, 10, 20); 
-  
-  // Responsive sizing unit based on screen size
   let vmin = min(width, height) / 100;
 
-  // Show loading screen until the local AI files are fully unpacked in memory
+  // GATEKEEPER 1: Force user interaction to start the audio stream
+  if (audioContext.state !== 'running') {
+    fill(0, 255, 200); // Xenolux Teal
+    textSize(vmin * 4);
+    text("TAP SCREEN TO ACTIVATE MICROPHONE", width/2, height/2);
+    return; // Stops the rest of the code from running until they click
+  }
+
+  // GATEKEEPER 2: Wait for AI to unpack
   if (!modelIsLoaded) {
     fill(255);
     textSize(vmin * 4);
-    text("Loading Local AI Pitch Model...", width/2, height/2);
+    text("Loading AI Pitch Model...", width/2, height/2);
     return;
   }
 
@@ -82,7 +83,6 @@ function draw() {
   fft.analyze();
   let micLevel = mic.getLevel();
   
-  // Display frequency only if loud enough (filters room noise)
   let displayFreq = micLevel > 0.02 ? frequency : 0;
   let tuningData = getTuningData(displayFreq);
 
@@ -90,25 +90,23 @@ function draw() {
   push();
   translate(width / 2, height / 2);
   
-  // The Target Ring (Bach structure)
   stroke(230, 180, 80, 100); 
   strokeWeight(2);
   noFill();
   ellipse(0, 0, vmin * 40, vmin * 40); 
 
   if (tuningData) {
-    // The Actual Pitch Ring (Sun Ra disruption)
     let pitchRadius = map(tuningData.cents, -50, 50, vmin * 25, vmin * 55);
     pitchRadius = constrain(pitchRadius, vmin * 20, vmin * 60); 
 
     let isTuned = Math.abs(tuningData.cents) < 6; 
     
     if (isTuned) {
-      stroke(0, 255, 200); // Xenolux Teal Lock-in
+      stroke(0, 255, 200); 
       strokeWeight(6);
       pitchRadius = vmin * 40; 
     } else {
-      stroke(180, 100, 255); // Cosmic Purple
+      stroke(180, 100, 255); 
       strokeWeight(3);
     }
     
@@ -153,23 +151,22 @@ function draw() {
     text("---", width / 2, height / 2 + (vmin * 2));
   }
   
-  // Diagnostic display and Instructions
   textSize(vmin * 2);
   fill(100);
-  text("AudioContext: " + audioContext.state, width / 2, height - (vmin * 6));
-  text("Tap screen to activate audio. Double-tap for fullscreen.", width / 2, height - (vmin * 3));
+  text("Double-tap for fullscreen.", width / 2, height - (vmin * 3));
 }
 
-// Ensure layout updates if the screen rotates
 function windowResized() {
   resizeCanvas(windowWidth, windowHeight);
 }
 
-// Handle audio activation and full-screen toggling
+// Handles user interaction
 function doubleClicked() {
   let fs = fullscreen();
   fullscreen(!fs);
 }
+
 function mousePressed() {
+  // This explicitly turns on the microphone and audio context when the user clicks
   userStartAudio();
 }
